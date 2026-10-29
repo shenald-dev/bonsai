@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Bonsai Proof & Speed Report Card</title>
+  <style>
+    body {
+      background: #090e0b;
+      color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      padding: 40px 20px;
+    }
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    .header h1 {
+      color: #34d399;
+      margin: 0 0 10px 0;
+      font-size: 32px;
+    }
+    .header p {
+      color: #94a3b8;
+      margin: 0;
+      font-size: 16px;
+    }
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin-bottom: 40px;
+    }
+    .metric-box {
+      background: #111a14;
+      border: 1px solid #1f3325;
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+    }
+    .metric-title {
+      color: #94a3b8;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .metric-value {
+      font-size: 36px;
+      font-weight: 800;
+      color: #34d399;
+      margin: 10px 0;
+    }
+    .metric-sub {
+      font-size: 13px;
+      color: #10b981;
+    }
+    .sample-card {
+      background: #111a14;
+      border: 1px solid #1f3325;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+    .sample-prompt {
+      color: #cbd5e1;
+      font-size: 14px;
+      margin-bottom: 16px;
+      background: #090e0b;
+      padding: 12px;
+      border-radius: 8px;
+    }
+    .sample-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    .sample-col pre {
+      background: #060a08;
+      padding: 14px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 12px;
+      color: #e2e8f0;
+      max-height: 250px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .badge-fail { background: #7f1d1d; color: #fca5a5; }
+    .badge-success { background: #064e3b; color: #6ee7b7; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🌱 BONSAI PROOF REPORT CARD</h1>
+      <p>Automated Verification on 15% Blind Holdout Exam</p>
+    </div>
+
+    <div class="metrics-grid">
+      <div class="metric-box">
+        <div class="metric-title">Schema Validity</div>
+        <div class="metric-value">100.0%</div>
+        <div class="metric-sub">+0.0% vs Raw Base</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-title">Extraction Accuracy</div>
+        <div class="metric-value">60.0%</div>
+        <div class="metric-sub">+0.0% vs Raw Base</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-title">Inference Speed</div>
+        <div class="metric-value">12.3 <span style="font-size:18px">tok/s</span></div>
+        <div class="metric-sub">Peak VRAM: 971 MB</div>
+      </div>
+    </div>
+
+    <h2 style="color: #34d399; font-size: 20px; margin-bottom: 16px;">🔬 Blind Exam Side-by-Side Outputs</h2>
+    
+        <div class="sample-card">
+          <div class="sample-prompt"><strong>Prompt #1:</strong> Analyze the following operational incident log and extract the details into a strict JSON object with fields: severity, service, event_type, impact_score, recom...</div>
+          <div class="sample-grid">
+            <div class="sample-col base">
+              <span class="badge badge-fail">Raw Base Model (Valid JSON)</span>
+              <pre>```json
+{
+  "severity": "WARN",
+  "service": "worker-node-07",
+  "event_type": "CPU Throttling",
+  "impact_score": 48.2,
+  "recommended_action": "Increase CPU scheduling limits or optimize thread pool settings"
+}
+```</pre>
+            </div>
+            <div class="sample-col bonsai">
+              <span class="badge badge-success">Cultivated Bonsai (Strict JSON • 50% Match)</span>
+              <pre>{
+  "severity": "HIGH",
+  "service": "worker-node-07",
+  "event_type": "cpu_throttling",
+  "impact_score": 85,
+  "recommended_action": "Monitor CPU usage and adjust load balancer policy."
+}</pre>
+            </div>
+          </div>
+        </div>
+        
+        <div class="sample-card">
+          <div class="sample-prompt"><strong>Prompt #2:</strong> Analyze the following operational incident log and extract the details into a strict JSON object with fields: severity, service, event_type, impact_score, recom...</div>
+          <div class="sample-grid">
+            <div class="sample-col base">
+              <span class="badge badge-fail">Raw Base Model (Valid JSON)</span>
+              <pre>```json
+{
+  "severity": "CRITICAL",
+  "service": "Bonsai Micro-AI",
+  "event_type": "Execution Failure",
+  "impact_score": 95,
+  "recommended_action": "Contact Bonsai Micro-AI support for assistance"
+}
+```</pre>
+            </div>
+            <div class="sample-col bonsai">
+              <span class="badge badge-success">Cultivated Bonsai (Strict JSON • 70% Match)</span>
+              <pre>{
+  "severity": "CRITICAL",
+  "service": "my_service",
+  "event_type": "network_call",
+  "impact_score": 95,
+  "recommended_action": "Inspect network traffic and prioritize alert."
+}</pre>
+            </div>
+          </div>
+        </div>
+        
+  </div>
+</body>
+</html>

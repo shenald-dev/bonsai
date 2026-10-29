@@ -1,0 +1,43 @@
+{
+  "version": "0.1.0",
+  "created_at": "2026-10-29T19:00:16.804769",
+  "output_dir": "D:\\bonsai\\bonsai_pruned",
+  "base_model": "D:\\bonsai\\models\\Qwen2.5-Coder-0.5B-Instruct",
+  "adapter_dir": "D:\\bonsai\\bonsai_pruned\\adapter",
+  "train_dataset": "D:\\bonsai\\bonsai_pruned\\cultivate.jsonl",
+  "exam_dataset": "D:\\bonsai\\bonsai_pruned\\exam.jsonl",
+  "modelfile": "D:\\bonsai\\bonsai_pruned\\Modelfile",
+  "runner_script": "D:\\bonsai\\bonsai_pruned\\serve.py",
+  "report_svg": "D:\\bonsai\\bonsai_pruned\\bonsai-report.svg",
+  "report_html": "D:\\bonsai\\bonsai_pruned\\bonsai-report.html",
+  "hardware": {
+    "gpu_name": "NVIDIA GeForce RTX 2050",
+    "gpu_type": "cuda",
+    "vram_total_mb": 4096.0,
+    "vram_free_mb": 3300.0
+  },
+  "training_telemetry": {
+    "model_name": "D:\\bonsai\\models\\Qwen2.5-Coder-0.5B-Instruct",
+    "adapter_path": "D:\\bonsai\\bonsai_pruned\\adapter",
+    "output_dir": "D:\\bonsai\\bonsai_pruned",
+    "epochs": 3,
+    "total_steps": 18,
+    "initial_loss": 1.5905,
+    "final_loss": 0.7713,
+    "loss_reduction_pct": 51.5,
+    "duration_seconds": 34.05,
+    "peak_vram_mb": 2044.7,
+    "device": "cuda"
+  },
+  "exam_scorecard": {
+    "base_schema_validity_pct": 100.0,
+    "bonsai_schema_validity_pct": 100.0,
+    "base_task_accuracy_pct": 60.0,
+    "bonsai_task_accuracy_pct": 60.0,
+    "base_hallucination_pct": 0.0,
+    "bonsai_hallucination_pct": 0.0,
+    "base_tokens_sec": 15.2,
+    "bonsai_tokens_sec": 9.8,
+    "peak_vram_mb": 2044.7
+  }
+}

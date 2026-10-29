@@ -1,0 +1,44 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Large AI Model Weights & Cache
+models/
+*.bin
+*.pt
+*.pth
+*.onnx
+*.gguf
+test_chunk.bin
+
+# Keep small adapter weights if needed, but exclude large raw checkpoints
+# Uncomment to ignore all adapter weights if desired:
+# */adapter/*.safetensors
+
+# Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# Pytest & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Operating System & IDE Artifacts
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Local runtime output files (optional)
+# bonsai_pruned/

@@ -1,0 +1,19 @@
+[2026-10-28 03:14:22.102] CRITICAL: db-cluster pg_bouncer pool exhausted on worker-node-04. Total active client connections reached 2500/2500 max limit. Connection acquisition latency spiked to 14200ms. Queries blocked: 184. Recommended emergency intervention required immediately.
+
+[2026-10-28 04:22:15.891] FATAL: billing-worker pod billing-processor-7cf99b-x8291 terminated by Linux kernel OOM-Killer. cgroup memory usage exceeded hard ceiling of 2048Mi. Exit code 137. 42 pending subscription invoice settlements stuck in queue.
+
+[2026-10-28 05:45:01.332] WARN: redis-cache node-02 observed high eviction rate. Cache hit ratio dropped from 99.4% to 71.2%. Downstream p99 database query latency elevated to 840ms.
+
+[2026-10-28 07:11:09.004] ERROR: payment-gateway external stripe webhook webhook-v2 timed out after 30000ms. HTTP status 504 Gateway Timeout. 15 checkout sessions aborted in region us-east-1.
+
+[2026-10-28 08:30:44.712] CRITICAL: auth-api JWT signature validation latency escalated to 4500ms due to key rotation lock contention. Ingress 503 error rate currently at 12.4% on edge router.
+
+[2026-10-28 09:15:33.220] WARN: order-service message backlog on Kafka topic 'orders.v1' reached 84,200 uncommitted offsets. Consumer group 'order-fulfilment-cg' lag increasing at 120 msg/sec.
+
+[2026-10-28 10:02:18.991] ERROR: ingress-controller SSL handshake failure rate jumped to 8.2% on domain api.production.internal following certificate authority intermediate bundle update.
+
+[2026-10-28 11:29:55.401] CRITICAL: inventory-db volume /var/lib/postgresql/data mounted on nvme0n1 utilization exceeded 94.8% threshold. Write-Ahead Logs (WAL) segment archiving lagging behind checkpointing.
+
+[2026-10-28 12:44:10.119] WARN: worker-node-07 CPU throttling detected by cfs_quota. 48.2% of scheduled time slices choked due to thread pool spinlock in background compression service.
+
+[2026-10-28 14:05:02.883] ERROR: db-cluster read replica replica-03 replication lag crossed 180 seconds. Streaming replication thread disconnected due to broken pipe. Secondary queries failing over to primary master.

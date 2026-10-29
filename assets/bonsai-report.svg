@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 850 480" width="850" height="480">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a0f0d"/>
+      <stop offset="100%" stop-color="#141e18"/>
+    </linearGradient>
+    <linearGradient id="emerald" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#34d399"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="850" height="480" rx="16" fill="url(#bg)" stroke="#22382c" stroke-width="2"/>
+
+  <!-- Header -->
+  <text x="40" y="55" fill="#34d399" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif" font-size="22" font-weight="700">🌱 BONSAI PROOF SCORECARD</text>
+  <text x="40" y="80" fill="#94a3b8" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif" font-size="13">Zero-Knowledge Local Micro-Distillation on Consumer Hardware</text>
+
+  <!-- Base Model vs Distilled Badge -->
+  <rect x="40" y="110" width="365" height="70" rx="10" fill="#16221c" stroke="#233d2e"/>
+  <text x="60" y="138" fill="#94a3b8" font-size="12" font-family="sans-serif">BASE MODEL (RAW)</text>
+  <text x="60" y="162" fill="#f59e0b" font-size="16" font-weight="bold" font-family="sans-serif">D:\bonsai\models\Qwen2.5-Coder-0.5B-Instruct</text>
+
+  <rect x="445" y="110" width="365" height="70" rx="10" fill="#132c20" stroke="#10b981"/>
+  <text x="465" y="138" fill="#a7f3d0" font-size="12" font-family="sans-serif">CULTIVATED MICRO-MODEL</text>
+  <text x="465" y="162" fill="#34d399" font-size="16" font-weight="bold" font-family="sans-serif">Bonsai 0.5B Specialized</text>
+
+  <!-- Metric 1: Schema Validity -->
+  <rect x="40" y="200" width="770" height="52" rx="8" fill="#131e18"/>
+  <text x="60" y="232" fill="#e2e8f0" font-size="14" font-weight="600" font-family="sans-serif">Strict Schema Validity</text>
+  <text x="350" y="232" fill="#f59e0b" font-size="14" font-family="sans-serif">100.0%</text>
+  <text x="520" y="232" fill="#34d399" font-size="15" font-weight="bold" font-family="sans-serif">100.0%</text>
+  <rect x="680" y="214" width="110" height="26" rx="13" fill="#064e3b"/>
+  <text x="735" y="231" fill="#6ee7b7" font-size="12" font-weight="bold" font-family="sans-serif" text-anchor="middle">+0.0%</text>
+
+  <!-- Metric 2: Task Accuracy -->
+  <rect x="40" y="262" width="770" height="52" rx="8" fill="#131e18"/>
+  <text x="60" y="294" fill="#e2e8f0" font-size="14" font-weight="600" font-family="sans-serif">Task Extraction Accuracy</text>
+  <text x="350" y="294" fill="#f59e0b" font-size="14" font-family="sans-serif">60.0%</text>
+  <text x="520" y="294" fill="#34d399" font-size="15" font-weight="bold" font-family="sans-serif">60.0%</text>
+  <rect x="680" y="276" width="110" height="26" rx="13" fill="#064e3b"/>
+  <text x="735" y="293" fill="#6ee7b7" font-size="12" font-weight="bold" font-family="sans-serif" text-anchor="middle">+0.0%</text>
+
+  <!-- Metric 3: Speed & Memory -->
+  <rect x="40" y="324" width="770" height="52" rx="8" fill="#131e18"/>
+  <text x="60" y="356" fill="#e2e8f0" font-size="14" font-weight="600" font-family="sans-serif">Generation Speed &amp; VRAM</text>
+  <text x="350" y="356" fill="#f59e0b" font-size="14" font-family="sans-serif">17.9 tok/s</text>
+  <text x="520" y="356" fill="#34d399" font-size="15" font-weight="bold" font-family="sans-serif">12.3 tok/s</text>
+  <rect x="680" y="338" width="110" height="26" rx="13" fill="#022c22"/>
+  <text x="735" y="355" fill="#34d399" font-size="12" font-weight="bold" font-family="sans-serif" text-anchor="middle">971 MB RAM</text>
+
+  <!-- Footer -->
+  <text x="40" y="440" fill="#64748b" font-size="12" font-family="sans-serif">Cultivated with Bonsai v0.1 • Tested on Unseen 15% Blind Holdout Set</text>
+  <text x="810" y="440" fill="#10b981" font-size="12" font-weight="bold" font-family="sans-serif" text-anchor="end">uvx bonsai prune ./data</text>
+</svg>

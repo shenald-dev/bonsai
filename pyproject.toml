@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bonsai-ai"
+version = "0.1.0"
+description = "The art of cultivating massive foundation models into pocket-sized intelligences on consumer silicon."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Bonsai Core Team", email = "cultivate@bonsai.ai"}
+]
+keywords = ["ai", "distillation", "lora", "qlora", "slm", "local-ai", "quantization", "micro-models"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    "typer[all]>=0.9.0",
+    "rich>=13.7.0",
+    "pydantic>=2.0.0",
+    "psutil>=5.9.0",
+    "requests>=2.31.0",
+    "transformers>=4.40.0",
+    "peft>=0.10.0",
+    "accelerate>=0.28.0",
+    "datasets>=2.18.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "black>=24.0.0",
+]
+
+[project.scripts]
+bonsai = "bonsai.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["bonsai*"]

@@ -1,0 +1,14 @@
+# Bonsai Cultivated Model
+# Exported by Bonsai v0.1
+
+FROM D:\bonsai\models\Qwen2.5-Coder-0.5B-Instruct
+ADAPTER D:\bonsai\bonsai_pruned\adapter
+
+# System Directive
+SYSTEM """You are a cultivated Bonsai micro-AI, specialized for deterministic, strict-schema execution on consumer silicon."""
+
+# Execution Parameters
+PARAMETER temperature 0.1
+PARAMETER top_p 0.95
+PARAMETER stop "<|im_end|>"
+PARAMETER stop "<|endoftext|>"
