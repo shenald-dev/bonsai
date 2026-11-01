@@ -6,7 +6,7 @@ from pathlib import Path
 import os
 from typing import Optional
 
-BONSAI_VERSION = "0.1.0"
+BONSAI_VERSION = "1.0.0"
 MANIFEST_FILENAME = "bonsai_manifest.json"
 
 DEFAULT_SYSTEM_DIRECTIVE = (

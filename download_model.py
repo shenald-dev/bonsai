@@ -1,3 +1,8 @@
+"""
+Bonsai Model Downloader.
+Pre-downloads base micro-models to the local models cache.
+"""
+
 import os
 import sys
 
@@ -13,7 +18,8 @@ from pathlib import Path
 import requests
 
 MODEL_ID = "Qwen/Qwen2.5-Coder-0.5B-Instruct"
-TARGET_DIR = Path("D:/bonsai/models/Qwen2.5-Coder-0.5B-Instruct")
+REPO_ROOT = Path(__file__).resolve().parent
+TARGET_DIR = REPO_ROOT / "models" / "Qwen2.5-Coder-0.5B-Instruct"
 TARGET_DIR.mkdir(parents=True, exist_ok=True)
 
 FILES = [

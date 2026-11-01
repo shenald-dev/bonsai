@@ -125,8 +125,8 @@ class BonsaiExam:
             b_out, b_lat, b_tok = base_results[i]
             p_out, p_lat, p_tok = bonsai_results[i]
 
-            b_valid, b_match = self._evaluate_json_payload(b_out, expected)
-            p_valid, p_match = self._evaluate_json_payload(p_out, expected)
+            b_valid, b_match = self._evaluate_payload(b_out, expected)
+            p_valid, p_match = self._evaluate_payload(p_out, expected)
 
             sample_results.append(ExamSampleResult(
                 prompt=user_prompt,
@@ -214,14 +214,54 @@ class BonsaiExam:
 
         return response_text, latency_ms, tokens_sec
 
-    def _evaluate_json_payload(self, output: str, expected_json: str) -> Tuple[bool, float]:
-        """Evaluates whether the output is valid JSON and calculates schema match score."""
-        expected_obj = {}
+    def _evaluate_payload(self, output: str, expected_output: str) -> Tuple[bool, float]:
+        """
+        Evaluates whether the output matches expectations.
+        Supports structured JSON, exact matching, and semantic token overlap (F1).
+        """
+        # Case 1: Check if expected output is structured JSON
+        expected_obj = None
         try:
-            expected_obj = json.loads(expected_json)
+            expected_obj = json.loads(expected_output)
         except Exception:
             pass
 
+        if isinstance(expected_obj, dict):
+            return self._evaluate_json_payload(output, expected_obj)
+
+        # Case 2: Free-form text / code evaluation
+        output_clean = output.strip()
+        expected_clean = expected_output.strip()
+
+        if not expected_clean:
+            return True, 100.0
+
+        if output_clean.lower() == expected_clean.lower():
+            return True, 100.0
+
+        # Token F1 score for partial semantic match
+        out_words = re.findall(r'\w+', output_clean.lower())
+        exp_words = re.findall(r'\w+', expected_clean.lower())
+
+        if not exp_words:
+            return True, 100.0
+        if not out_words:
+            return False, 0.0
+
+        common = set(out_words).intersection(set(exp_words))
+        precision = len(common) / len(out_words)
+        recall = len(common) / len(exp_words)
+
+        if precision + recall == 0:
+            return False, 0.0
+
+        f1 = (2 * precision * recall) / (precision + recall)
+        score = round(f1 * 100.0, 1)
+        is_valid = score >= 50.0
+        return is_valid, score
+
+    def _evaluate_json_payload(self, output: str, expected_obj: Dict[str, Any]) -> Tuple[bool, float]:
+        """Evaluates whether the output is valid JSON and calculates schema match score."""
         parsed = None
         is_valid = False
         try:

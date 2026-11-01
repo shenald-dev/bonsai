@@ -1,6 +1,6 @@
 """
 Unified Manifest Architecture for Bonsai.
-Provides single-source-of-truth state handoff across probe, prune, exam, and serve.
+Provides single-source-of-truth state handoff across probe, prune, exam, merge, and serve.
 """
 
 from dataclasses import dataclass, asdict
@@ -26,6 +26,7 @@ class BonsaiManifest:
     hardware: Dict[str, Any]
     training_telemetry: Dict[str, Any]
     exam_scorecard: Optional[Dict[str, Any]] = None
+    merged_model_dir: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -47,4 +48,13 @@ def load_manifest(path_or_dir: Union[str, Path]) -> BonsaiManifest:
         raise FileNotFoundError(f"Bonsai manifest not found at: {p}. Run 'bonsai prune' first to generate a run manifest.")
 
     data = json.loads(p.read_text(encoding="utf-8"))
-    return BonsaiManifest(**data)
+    
+    # Filter known fields for backward and forward compatibility
+    known_fields = {
+        "version", "created_at", "output_dir", "base_model", "adapter_dir",
+        "train_dataset", "exam_dataset", "modelfile", "runner_script",
+        "report_svg", "report_html", "hardware", "training_telemetry",
+        "exam_scorecard", "merged_model_dir"
+    }
+    filtered_data = {k: v for k, v in data.items() if k in known_fields}
+    return BonsaiManifest(**filtered_data)

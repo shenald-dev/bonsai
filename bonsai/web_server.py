@@ -1,78 +1,41 @@
 """
-Bonsai Web UI & Live Inference Server.
-Single-process, zero-reload GPU server with a dark-mode interactive web chat interface.
+Bonsai Web UI & OpenAI-Compatible Inference Server.
+Single-process, zero-reload local server supporting both an interactive dark-mode web chat
+and standard OpenAI-compatible API endpoints (/v1/chat/completions, /v1/models).
 """
-
-import sys
-if sys.platform == "win32":
-    try:
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:
-        pass
 
 import json
 import os
+import sys
 import time
+import uuid
 import webbrowser
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from socketserver import ThreadingMixIn
-import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
-from peft import PeftModel
+from typing import Dict, Any, Optional
 
 from bonsai.core.constants import get_resolved_model_path, DEFAULT_SYSTEM_DIRECTIVE
 from bonsai.core.manifest import load_manifest
 
-PORT = 7860
 
-# Resolve paths dynamically via manifest or default resolver
-try:
-    manifest = load_manifest("D:/bonsai/bonsai_pruned")
-    BASE_MODEL_DIR = manifest.base_model
-    ADAPTER_DIR = manifest.adapter_dir
-except Exception:
-    BASE_MODEL_DIR = get_resolved_model_path()
-    ADAPTER_DIR = "D:/bonsai/bonsai_pruned/adapter"
+# Ensure UTF-8 output on Windows
+if sys.platform == "win32":
+    try:
+        if hasattr(sys.stdout, "reconfigure"):
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        if hasattr(sys.stderr, "reconfigure"):
+            sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
-print("==================================================================")
-print("🌱 BONSAI LIVE CHAT SERVER")
-print("Loading fine-tuned micro-AI into NVIDIA GPU VRAM (one-time load)...")
-print("==================================================================")
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
-dtype = torch.float16 if device == "cuda" else torch.float32
-
-# 1. Load Model into GPU once
-tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL_DIR, trust_remote_code=True)
-if tokenizer.pad_token is None:
-    tokenizer.pad_token = tokenizer.eos_token
-
-base_model = AutoModelForCausalLM.from_pretrained(
-    BASE_MODEL_DIR,
-    torch_dtype=dtype,
-    trust_remote_code=True,
-    low_cpu_mem_usage=True
-).to(device)
-
-model = PeftModel.from_pretrained(base_model, ADAPTER_DIR).to(device)
-model.eval()
-
-vram_mb = 0.0
-if device == "cuda":
-    vram_mb = round(torch.cuda.max_memory_allocated() / (1024 ** 2), 1)
-
-print(f"✓ Model loaded successfully on {device.upper()}! VRAM allocated: {vram_mb} MB")
-print(f"✓ Web UI ready at: http://localhost:{PORT}")
-print("==================================================================\n")
-
-HTML_CONTENT = """<!DOCTYPE html>
+HTML_TEMPLATE = r"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bonsai Micro-AI • Live Local Chat</title>
+  <title>Bonsai Micro-AI • Live Local Chat & API</title>
   <style>
     :root {
       --bg: #090e0b;
@@ -98,7 +61,7 @@ HTML_CONTENT = """<!DOCTYPE html>
     header {
       background: var(--card-bg);
       border-bottom: 1px solid var(--border);
-      padding: 16px 24px;
+      padding: 14px 24px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -121,7 +84,12 @@ HTML_CONTENT = """<!DOCTYPE html>
       font-size: 12px;
       color: var(--text-dim);
     }
-    .hardware-badge {
+    .badges {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .badge {
       background: rgba(16, 185, 129, 0.12);
       border: 1px solid rgba(16, 185, 129, 0.3);
       padding: 6px 14px;
@@ -149,44 +117,29 @@ HTML_CONTENT = """<!DOCTYPE html>
     main {
       flex: 1;
       display: flex;
-      flex-direction: column;
-      max-width: 900px;
-      width: 100%;
-      margin: 0 auto;
-      padding: 20px;
       overflow: hidden;
     }
     #chat-container {
       flex: 1;
       overflow-y: auto;
-      padding-right: 8px;
+      padding: 24px;
       display: flex;
       flex-direction: column;
       gap: 16px;
     }
-    #chat-container::-webkit-scrollbar {
-      width: 6px;
-    }
-    #chat-container::-webkit-scrollbar-thumb {
-      background: var(--border);
-      border-radius: 3px;
-    }
     .message {
-      max-width: 85%;
+      max-width: 80%;
       padding: 14px 18px;
       border-radius: 12px;
       line-height: 1.5;
-      font-size: 14.5px;
-      animation: fadeIn 0.25s ease-out;
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(6px); }
-      to { opacity: 1; transform: translateY(0); }
+      font-size: 14px;
+      position: relative;
+      word-break: break-word;
     }
     .message.user {
       align-self: flex-end;
       background: var(--msg-user);
-      border: 1px solid #1c4a33;
+      border: 1px solid var(--border);
       border-bottom-right-radius: 2px;
     }
     .message.ai {
@@ -195,99 +148,94 @@ HTML_CONTENT = """<!DOCTYPE html>
       border: 1px solid var(--border);
       border-bottom-left-radius: 2px;
     }
-    .message pre {
-      background: var(--code-bg);
-      border: 1px solid #1a2a20;
-      padding: 12px;
-      border-radius: 8px;
-      overflow-x: auto;
-      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-      font-size: 13px;
-      margin: 8px 0;
-      color: #a7f3d0;
-    }
-    .meta-tag {
+    .telemetry-tag {
       font-size: 11px;
-      color: var(--text-dim);
-      margin-top: 6px;
+      color: var(--accent);
+      margin-top: 8px;
       display: flex;
-      align-items: center;
       gap: 12px;
+      opacity: 0.85;
+      border-top: 1px dashed rgba(16, 185, 129, 0.2);
+      padding-top: 6px;
+    }
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px;
+      margin: 8px 0;
+      overflow-x: auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 13px;
+      color: #6ee7b7;
+    }
+    footer {
+      background: var(--card-bg);
+      border-top: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .input-row {
+      display: flex;
+      gap: 12px;
+    }
+    textarea {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 14px;
+      resize: none;
+      height: 48px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    textarea:focus {
+      border-color: var(--accent);
+    }
+    button.send-btn {
+      background: var(--accent);
+      color: #064e3b;
+      font-weight: 700;
+      border: none;
+      border-radius: 8px;
+      padding: 0 24px;
+      cursor: pointer;
+      transition: background 0.2s;
+      font-size: 14px;
+    }
+    button.send-btn:hover {
+      background: var(--accent-light);
+    }
+    button.send-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
     .quick-chips {
       display: flex;
       gap: 8px;
       overflow-x: auto;
-      padding: 10px 0;
-      margin-top: 10px;
+      padding-bottom: 2px;
     }
-    .quick-chips::-webkit-scrollbar { display: none; }
     .chip {
-      background: var(--card-bg);
+      background: var(--bg);
       border: 1px solid var(--border);
       color: var(--text-dim);
-      padding: 6px 12px;
-      border-radius: 16px;
       font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 14px;
       cursor: pointer;
       white-space: nowrap;
       transition: all 0.2s;
     }
     .chip:hover {
-      background: rgba(16, 185, 129, 0.15);
       border-color: var(--accent);
-      color: var(--accent-light);
-    }
-    .input-bar {
-      margin-top: 10px;
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 8px 12px;
-      display: flex;
-      align-items: flex-end;
-      gap: 10px;
-    }
-    .input-bar:focus-within {
-      border-color: var(--accent);
-      box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
-    }
-    textarea {
-      flex: 1;
-      background: transparent;
-      border: none;
       color: var(--text);
-      font-size: 14.5px;
-      font-family: inherit;
-      resize: none;
-      outline: none;
-      max-height: 140px;
-      line-height: 1.4;
-      padding: 6px 4px;
-    }
-    textarea::placeholder {
-      color: #64748b;
-    }
-    button#send-btn {
-      background: var(--accent);
-      color: #042416;
-      border: none;
-      border-radius: 8px;
-      padding: 8px 16px;
-      font-size: 14px;
-      font-weight: 700;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      transition: opacity 0.2s;
-    }
-    button#send-btn:hover {
-      opacity: 0.9;
-    }
-    button#send-btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
     }
   </style>
 </head>
@@ -297,106 +245,109 @@ HTML_CONTENT = """<!DOCTYPE html>
       <div class="logo-icon">🌱</div>
       <div>
         <div class="logo-title">BONSAI MICRO-AI</div>
-        <div class="logo-sub">Cultivated Qwen2.5-Coder 0.5B • Consumer Silicon</div>
+        <div class="logo-sub">Ultra-fast pocket intelligence on consumer silicon</div>
       </div>
     </div>
-    <div class="hardware-badge">
-      <div class="pulse-dot"></div>
-      <span id="hw-info">GPU: RTX 2050 (Live)</span>
+    <div class="badges">
+      <div class="badge">
+        <div class="pulse-dot"></div>
+        <span id="hardware-text">PROBING SILICON...</span>
+      </div>
+      <div class="badge" title="OpenAI API Compatible Endpoint">
+        <span>⚡ OpenAI API: /v1</span>
+      </div>
     </div>
   </header>
 
   <main>
     <div id="chat-container">
       <div class="message ai">
-        <strong>🌱 Bonsai Micro-AI:</strong><br>
-        Hello! I am your cultivated micro-AI, fine-tuned locally on your RTX 2050 GPU. You can chat with me freely, or click any sample below to test my deterministic incident parsing and JSON extraction!
+        <strong>Greetings!</strong> I am your locally-cultivated <strong>Bonsai Micro-AI</strong>, operating directly inside your host memory.
+        <br/><br/>
+        Send me any log snippet, technical problem, or query to verify my responses. You can also connect to me via any OpenAI client at <code>http://localhost:PORT/v1/chat/completions</code>!
       </div>
     </div>
-
-    <div class="quick-chips">
-      <div class="chip" onclick="fillPrompt('CRITICAL: db-cluster pg_bouncer pool exhausted on worker-node-04. 2500/2500 active connections.')">🚨 DB Pool Crash</div>
-      <div class="chip" onclick="fillPrompt('FATAL: billing-worker pod terminated by Linux kernel OOM-Killer. Memory exceeded 2048Mi.')">💥 Pod OOM-Killer</div>
-      <div class="chip" onclick="fillPrompt('WARN: redis-cache node-02 observed high eviction rate. Cache hit ratio dropped to 71.2%.')">⚠️ Redis Storm</div>
-      <div class="chip" onclick="fillPrompt('CRITICAL: auth-api JWT signature validation latency escalated to 4500ms due to key rotation contention.')">🔒 JWT Failure</div>
-      <div class="chip" onclick="fillPrompt('Who are you and what makes you special compared to giant foundation models?')">💬 Tell me about yourself</div>
-    </div>
-
-    <div class="input-bar">
-      <textarea id="prompt-input" rows="1" placeholder="Type a message or paste a raw incident log (Enter to send, Shift+Enter for new line)..."></textarea>
-      <button id="send-btn" onclick="sendMessage()">Send</button>
-    </div>
   </main>
+
+  <footer>
+    <div class="quick-chips">
+      <span class="chip" onclick="fillPrompt('CRITICAL: db-cluster connection pool exhausted on worker-01. Max connections reached.')">💥 DB Pool Exhaustion</span>
+      <span class="chip" onclick="fillPrompt('FATAL: billing-worker pod terminated by OOM-Killer. Memory exceeded 2048Mi.')">🛑 Worker OOM Alert</span>
+      <span class="chip" onclick="fillPrompt('WARN: redis-cache node-02 high eviction rate. Cache hit ratio dropped to 68%.')">⚠️ Redis Latency Spike</span>
+      <span class="chip" onclick="fillPrompt('Who are you and what architecture are you running on?')">🧬 Identity Check</span>
+    </div>
+    <div class="input-row">
+      <textarea id="prompt-input" placeholder="Type a prompt or test query... (Shift+Enter for newline, Enter to send)"></textarea>
+      <button id="send-btn" class="send-btn" onclick="sendQuery()">Cultivate</button>
+    </div>
+  </footer>
 
   <script>
     const chatContainer = document.getElementById('chat-container');
     const promptInput = document.getElementById('prompt-input');
     const sendBtn = document.getElementById('send-btn');
+    const hardwareText = document.getElementById('hardware-text');
+
+    async function updateStatus() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+        hardwareText.textContent = `${data.device.toUpperCase()} • VRAM ${data.vram_mb} MB • READY`;
+      } catch (e) {
+        hardwareText.textContent = 'ONLINE';
+      }
+    }
+    updateStatus();
 
     promptInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        sendMessage();
+        sendQuery();
       }
-    });
-
-    promptInput.addEventListener('input', () => {
-      promptInput.style.height = 'auto';
-      promptInput.style.height = Math.min(promptInput.scrollHeight, 140) + 'px';
     });
 
     function fillPrompt(text) {
       promptInput.value = text;
       promptInput.focus();
-      promptInput.style.height = 'auto';
-      promptInput.style.height = Math.min(promptInput.scrollHeight, 140) + 'px';
     }
 
-    function appendMessage(role, text, meta) {
+    function appendMessage(role, text, telemetry = null) {
       const msgDiv = document.createElement('div');
       msgDiv.className = `message ${role}`;
 
-      // Check if text contains JSON or code
-      let formatted = text;
-      if (text.includes('{') && text.includes('}')) {
+      let formattedText = text;
+      if (text.includes('```')) {
+        formattedText = text.replace(/```(?:json)?\s*([\\s\\S]*?)\\s*```/g, '<pre><code>$1</code></pre>');
+      } else if (text.trim().startsWith('{') && text.trim().endsWith('}')) {
         try {
-          const match = text.match(/\{[\s\S]*\}/);
-          if (match) {
-            const parsed = JSON.parse(match[0]);
-            const pretty = JSON.stringify(parsed, null, 2);
-            formatted = text.replace(match[0], `<pre><code>${pretty}</code></pre>`);
-          }
+          const parsed = JSON.parse(text);
+          formattedText = '<pre><code>' + JSON.stringify(parsed, null, 2) + '</code></pre>';
         } catch (e) {}
-      } else {
-        formatted = text.replace(/\\n/g, '<br>');
       }
 
-      msgDiv.innerHTML = formatted;
+      msgDiv.innerHTML = formattedText;
 
-      if (meta) {
-        const metaDiv = document.createElement('div');
-        metaDiv.className = 'meta-tag';
-        metaDiv.innerHTML = `⚡ ${meta.latency_ms} ms • ${meta.tokens_sec} tok/s • Memory: ${meta.vram_mb} MB`;
-        msgDiv.appendChild(metaDiv);
+      if (telemetry) {
+        const telDiv = document.createElement('div');
+        telDiv.className = 'telemetry-tag';
+        telDiv.innerHTML = `<span>⚡ ${telemetry.tokens_sec} tok/s</span><span>⏱ ${telemetry.latency_ms} ms</span><span>💾 ${telemetry.vram_mb} MB VRAM</span>`;
+        msgDiv.appendChild(telDiv);
       }
 
       chatContainer.appendChild(msgDiv);
       chatContainer.scrollTop = chatContainer.scrollHeight;
     }
 
-    async function sendMessage() {
+    async function sendQuery() {
       const prompt = promptInput.value.trim();
       if (!prompt) return;
 
       appendMessage('user', prompt);
       promptInput.value = '';
-      promptInput.style.height = 'auto';
       sendBtn.disabled = true;
 
-      // Temporary typing indicator
       const typingDiv = document.createElement('div');
       typingDiv.className = 'message ai';
-      typingDiv.id = 'typing-indicator';
       typingDiv.innerHTML = '<em>🌱 Cultivating response on GPU...</em>';
       chatContainer.appendChild(typingDiv);
       chatContainer.scrollTop = chatContainer.scrollHeight;
@@ -428,97 +379,311 @@ HTML_CONTENT = """<!DOCTYPE html>
 </html>
 """
 
+
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
     daemon_threads = True
 
-class BonsaiHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        if self.path == "/" or self.path == "/index.html":
-            self.send_response(200)
-            self.send_header("Content-Type", "text/html; charset=utf-8")
-            self.end_headers()
-            self.wfile.write(HTML_CONTENT.encode("utf-8"))
-        elif self.path == "/api/status":
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            curr_vram = round(torch.cuda.max_memory_allocated() / (1024 ** 2), 1) if device == "cuda" else 0.0
-            data = {"status": "ready", "device": device, "vram_mb": curr_vram, "model": BASE_MODEL_DIR}
-            self.wfile.write(json.dumps(data).encode("utf-8"))
+
+class BonsaiServer:
+    """Encapsulates the PyTorch model runtime and local HTTP / OpenAI server."""
+
+    def __init__(
+        self,
+        target_path: str = "./bonsai_pruned",
+        host: str = "127.0.0.1",
+        port: int = 7860
+    ):
+        self.target_path = Path(target_path).resolve()
+        self.host = host
+        self.port = port
+        self.model = None
+        self.tokenizer = None
+        self.device = "cpu"
+        self.model_identifier = "bonsai-micro-ai"
+        self.vram_allocated_mb = 0.0
+        self.system_directive = DEFAULT_SYSTEM_DIRECTIVE
+        self.httpd: Optional[ThreadedHTTPServer] = None
+
+    def load_model(self):
+        """Loads model weights onto device on demand."""
+        import torch
+        from transformers import AutoModelForCausalLM, AutoTokenizer
+        from peft import PeftModel
+
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        dtype = torch.float16 if self.device == "cuda" else torch.float32
+
+        # 1. Resolve base model and adapter or merged directory
+        base_model_path = None
+        adapter_path = None
+
+        if self.target_path.is_file() and self.target_path.name == "bonsai_manifest.json":
+            manifest = load_manifest(self.target_path)
+            base_model_path = manifest.base_model
+            adapter_path = manifest.adapter_dir
+        elif (self.target_path / "bonsai_manifest.json").exists():
+            manifest = load_manifest(self.target_path / "bonsai_manifest.json")
+            base_model_path = manifest.base_model
+            adapter_path = manifest.adapter_dir
+        elif (self.target_path / "model.safetensors").exists():
+            # Merged standalone model directory
+            base_model_path = str(self.target_path)
+            adapter_path = None
+        elif (self.target_path / "adapter" / "adapter_model.safetensors").exists():
+            base_model_path = get_resolved_model_path()
+            adapter_path = str(self.target_path / "adapter")
         else:
-            self.send_response(404)
-            self.end_headers()
+            base_model_path = get_resolved_model_path()
+            adapter_path = str(self.target_path / "adapter") if (self.target_path / "adapter").exists() else None
 
-    def do_POST(self):
-        if self.path == "/api/chat":
-            content_len = int(self.headers.get("Content-Length", 0))
-            body = self.rfile.read(content_len).decode("utf-8")
-            data = json.loads(body)
-            prompt = data.get("prompt", "")
+        self.model_identifier = Path(base_model_path).name if Path(base_model_path).exists() else base_model_path
 
-            # Run inference
-            start_time = time.perf_counter()
-            system_directive = (
-                "You are Bonsai Micro-AI, an ultra-fast pocket-sized AI cultivated locally on consumer silicon "
-                "using the Bonsai distillation engine. You specialize in zero-latency incident extraction, structured JSON "
-                "parsing, and deterministic reasoning. When asked who you are or what model you are, identify yourself "
-                "proudly as Bonsai Micro-AI running locally on this PC."
-            )
-            messages = [
-                {"role": "system", "content": system_directive},
-                {"role": "user", "content": prompt}
-            ]
-            text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-            inputs = tokenizer(text, return_tensors="pt").to(device)
+        print(f"🌱 [Bonsai Server] Loading model: {base_model_path}")
+        if adapter_path:
+            print(f"🌿 [Bonsai Server] Loading adapter: {adapter_path}")
 
-            with torch.no_grad():
-                out = model.generate(
-                    **inputs,
-                    max_new_tokens=256,
-                    do_sample=False,
-                    pad_token_id=tokenizer.eos_token_id
-                )
+        # Load Tokenizer
+        tokenizer_src = adapter_path if adapter_path and (Path(adapter_path) / "tokenizer_config.json").exists() else base_model_path
+        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_src, trust_remote_code=True)
+        if self.tokenizer.pad_token is None:
+            self.tokenizer.pad_token = self.tokenizer.eos_token
 
-            elapsed = time.perf_counter() - start_time
-            gen = out[0][inputs["input_ids"].shape[1]:]
-            response = tokenizer.decode(gen, skip_special_tokens=True).strip()
+        # Load Base Model
+        base = AutoModelForCausalLM.from_pretrained(
+            base_model_path,
+            torch_dtype=dtype,
+            trust_remote_code=True,
+            low_cpu_mem_usage=True
+        ).to(self.device)
 
-            num_tokens = len(gen)
-            latency_ms = round(elapsed * 1000, 1)
-            tokens_sec = round(num_tokens / elapsed, 1) if elapsed > 0 else 0.0
-            curr_vram = round(torch.cuda.max_memory_allocated() / (1024 ** 2), 1) if device == "cuda" else 0.0
+        # Attach LoRA adapter if present
+        if adapter_path and Path(adapter_path).exists():
+            self.model = PeftModel.from_pretrained(base, adapter_path).to(self.device)
+        else:
+            self.model = base
 
-            res_payload = {
-                "response": response,
-                "latency_ms": latency_ms,
-                "tokens_sec": tokens_sec,
-                "vram_mb": curr_vram
+        self.model.eval()
+
+        if self.device == "cuda":
+            self.vram_allocated_mb = round(torch.cuda.max_memory_allocated() / (1024 ** 2), 1)
+
+        print(f"✓ Model ready on {self.device.upper()}! VRAM allocated: {self.vram_allocated_mb} MB")
+
+    def generate(self, messages: list, max_tokens: int = 256, temperature: float = 0.0) -> Dict[str, Any]:
+        """Runs single conversation completion through the loaded model."""
+        import torch
+
+        if not self.model or not self.tokenizer:
+            self.load_model()
+
+        text = self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        raw_inputs = self.tokenizer(text, return_tensors="pt")
+        if hasattr(raw_inputs, "to"):
+            inputs = raw_inputs.to(self.device)
+        elif isinstance(raw_inputs, dict):
+            inputs = {k: v.to(self.device) if hasattr(v, "to") else v for k, v in raw_inputs.items()}
+        else:
+            inputs = raw_inputs
+
+        start_time = time.perf_counter()
+        with torch.no_grad():
+            gen_kwargs = {
+                "max_new_tokens": max_tokens,
+                "pad_token_id": self.tokenizer.eos_token_id
             }
+            if temperature > 0.0:
+                gen_kwargs["do_sample"] = True
+                gen_kwargs["temperature"] = temperature
+            else:
+                gen_kwargs["do_sample"] = False
 
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json; charset=utf-8")
-            self.end_headers()
-            self.wfile.write(json.dumps(res_payload).encode("utf-8"))
-        else:
-            self.send_response(404)
-            self.end_headers()
+            out = self.model.generate(**inputs, **gen_kwargs)
 
-    def log_message(self, format, *args):
-        # Clean logging
-        pass
+        elapsed = time.perf_counter() - start_time
+        prompt_len = inputs["input_ids"].shape[1]
+        gen = out[0][prompt_len:]
+        response = self.tokenizer.decode(gen, skip_special_tokens=True).strip()
 
-def run_server():
-    server = ThreadedHTTPServer(("127.0.0.1", PORT), BonsaiHandler)
-    # Open browser automatically
+        num_tokens = len(gen)
+        latency_ms = round(elapsed * 1000, 1)
+        tokens_sec = round(num_tokens / elapsed, 1) if elapsed > 0 else 0.0
+        curr_vram = round(torch.cuda.max_memory_allocated() / (1024 ** 2), 1) if self.device == "cuda" else 0.0
+
+        return {
+            "response": response,
+            "prompt_tokens": prompt_len,
+            "completion_tokens": num_tokens,
+            "total_tokens": prompt_len + num_tokens,
+            "latency_ms": latency_ms,
+            "tokens_sec": tokens_sec,
+            "vram_mb": curr_vram
+        }
+
+
+def create_handler_class(server_instance: BonsaiServer):
+    """Factory creating the HTTP Request Handler wired to the server instance."""
+
+    class DynamicBonsaiHandler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path in ("/", "/index.html"):
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.end_headers()
+                self.wfile.write(HTML_TEMPLATE.encode("utf-8"))
+
+            elif self.path in ("/api/status", "/health", "/api/health"):
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                data = {
+                    "status": "ready",
+                    "device": server_instance.device,
+                    "vram_mb": server_instance.vram_allocated_mb,
+                    "model": server_instance.model_identifier,
+                    "endpoints": ["/v1/chat/completions", "/v1/models", "/api/chat"]
+                }
+                self.wfile.write(json.dumps(data).encode("utf-8"))
+
+            elif self.path == "/v1/models":
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                data = {
+                    "object": "list",
+                    "data": [
+                        {
+                            "id": "bonsai-micro-ai",
+                            "object": "model",
+                            "created": int(time.time()),
+                            "owned_by": "bonsai",
+                            "root": server_instance.model_identifier
+                        }
+                    ]
+                }
+                self.wfile.write(json.dumps(data).encode("utf-8"))
+
+            else:
+                self.send_response(404)
+                self.end_headers()
+
+        def do_POST(self):
+            content_len = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(content_len).decode("utf-8") if content_len > 0 else "{}"
+            try:
+                data = json.loads(body)
+            except Exception:
+                data = {}
+
+            # OpenAI Compatible Chat Completions Endpoint
+            if self.path == "/v1/chat/completions":
+                messages = data.get("messages", [])
+                if not messages:
+                    prompt = data.get("prompt", "")
+                    messages = [{"role": "user", "content": prompt}]
+
+                # Ensure system directive exists if not specified
+                has_system = any(m.get("role") == "system" for m in messages)
+                if not has_system:
+                    messages = [{"role": "system", "content": server_instance.system_directive}] + messages
+
+                max_tokens = data.get("max_tokens", 256)
+                temperature = data.get("temperature", 0.0)
+
+                gen_result = server_instance.generate(messages, max_tokens=max_tokens, temperature=temperature)
+
+                openai_response = {
+                    "id": f"chatcmpl-{uuid.uuid4().hex[:12]}",
+                    "object": "chat.completion",
+                    "created": int(time.time()),
+                    "model": data.get("model", "bonsai-micro-ai"),
+                    "choices": [
+                        {
+                            "index": 0,
+                            "message": {
+                                "role": "assistant",
+                                "content": gen_result["response"]
+                            },
+                            "finish_reason": "stop"
+                        }
+                    ],
+                    "usage": {
+                        "prompt_tokens": gen_result["prompt_tokens"],
+                        "completion_tokens": gen_result["completion_tokens"],
+                        "total_tokens": gen_result["total_tokens"]
+                    },
+                    "bonsai_telemetry": {
+                        "latency_ms": gen_result["latency_ms"],
+                        "tokens_sec": gen_result["tokens_sec"],
+                        "vram_mb": gen_result["vram_mb"]
+                    }
+                }
+
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.end_headers()
+                self.wfile.write(json.dumps(openai_response).encode("utf-8"))
+
+            # Legacy Web UI endpoint
+            elif self.path == "/api/chat":
+                prompt = data.get("prompt", "")
+                messages = [
+                    {"role": "system", "content": server_instance.system_directive},
+                    {"role": "user", "content": prompt}
+                ]
+                gen_result = server_instance.generate(messages, max_tokens=256)
+                res_payload = {
+                    "response": gen_result["response"],
+                    "latency_ms": gen_result["latency_ms"],
+                    "tokens_sec": gen_result["tokens_sec"],
+                    "vram_mb": gen_result["vram_mb"]
+                }
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.end_headers()
+                self.wfile.write(json.dumps(res_payload).encode("utf-8"))
+
+            else:
+                self.send_response(404)
+                self.end_headers()
+
+        def log_message(self, format, *args):
+            pass
+
+    return DynamicBonsaiHandler
+
+
+def run_server(
+    target: str = "./bonsai_pruned",
+    port: int = 7860,
+    host: str = "127.0.0.1",
+    open_browser: bool = True
+):
+    """Initializes and runs the Bonsai web & API server."""
+    server = BonsaiServer(target_path=target, host=host, port=port)
+    server.load_model()
+
+    handler_cls = create_handler_class(server)
+    httpd = ThreadedHTTPServer((host, port), handler_cls)
+    server.httpd = httpd
+
+    url = f"http://{host}:{port}"
+    print(f"🌱 Bonsai Live Web UI & OpenAI API ready at: {url}")
+    print(f"   • Web Interface: {url}/")
+    print(f"   • OpenAI API:    {url}/v1/chat/completions")
+    print(f"   • Health Status: {url}/health")
+
+    if open_browser:
+        try:
+            webbrowser.open(url)
+        except Exception:
+            pass
+
     try:
-        webbrowser.open(f"http://localhost:{PORT}")
-    except Exception:
-        pass
-    try:
-        server.serve_forever()
+        httpd.serve_forever()
     except KeyboardInterrupt:
         print("\n🌱 Shutting down Bonsai server cleanly...")
-        server.server_close()
+        httpd.server_close()
+
 
 if __name__ == "__main__":
     run_server()

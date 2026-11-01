@@ -13,7 +13,7 @@ echo   intelligences on consumer silicon.
 echo ====================================================================
 echo.
 
-cd /d "D:\bonsai"
+cd /d "%~dp0"
 
 echo [1/3] Checking Python environment...
 where python >nul 2>&1

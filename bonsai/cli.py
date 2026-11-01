@@ -51,6 +51,11 @@ BANNER = r"""[bold green]
 [dim green]The art of cultivating massive foundation models into pocket-sized intelligences.[/dim green]
 """
 
+@app.command("version")
+def cmd_version():
+    """Displays the current Bonsai version and release status."""
+    console.print(f"[bold green]🌱 Bonsai[/bold green] version [bold cyan]{BONSAI_VERSION}[/bold cyan] (Major v1.0.0)")
+
 @app.command("probe")
 def cmd_probe():
     """Inspects host hardware telemetry, detects available VRAM, and recommends the zero-OOM micro-model."""
@@ -234,6 +239,38 @@ def cmd_exam(
         console.print(f"\n[bold red]❌ Bonsai Exam Error:[/bold red] {e}\n")
         raise typer.Exit(code=1)
 
+@app.command("merge")
+def cmd_merge(
+    target: str = typer.Argument("./bonsai_pruned", help="Path to output directory or bonsai_manifest.json"),
+    output_dir: Optional[str] = typer.Option(None, "--output-dir", "-o", help="Target directory for merged weights (defaults to <target>/merged)"),
+    device: str = typer.Option("auto", "--device", "-d", help="Device for merging: auto, cpu, or cuda")
+):
+    """Fuses LoRA synaptic adapter weights into base model weights for standalone zero-overhead serving or GGUF conversion."""
+    console.print(BANNER)
+    from bonsai.trainers.merger import BonsaiMerger
+    try:
+        manifest = load_manifest(target)
+        base_model = manifest.base_model
+        adapter_path = manifest.adapter_dir
+        dest_dir = output_dir or str(Path(manifest.output_dir) / "merged")
+
+        merger = BonsaiMerger(
+            base_model=base_model,
+            adapter_path=adapter_path,
+            output_dir=dest_dir,
+            device=device
+        )
+        telemetry = merger.merge()
+
+        # Update manifest with merged path
+        manifest.merged_model_dir = dest_dir
+        manifest.save()
+        console.print(f"[bold green]📋 State manifest updated with merged model:[/bold green] [cyan]{dest_dir}[/cyan]\n")
+
+    except Exception as e:
+        console.print(f"\n[bold red]❌ Bonsai Merge Error:[/bold red] {e}\n")
+        raise typer.Exit(code=1)
+
 @app.command("serve")
 def cmd_serve(
     target: str = typer.Argument("./bonsai_pruned", help="Path to output directory or bonsai_manifest.json")
@@ -285,11 +322,19 @@ def cmd_serve(
 
 @app.command("ui")
 def cmd_ui(
-    port: int = typer.Option(7860, "--port", "-p", help="Port to host web UI on")
+    target: str = typer.Option("./bonsai_pruned", "--target", "-t", help="Path to output directory or bonsai_manifest.json"),
+    port: int = typer.Option(7860, "--port", "-p", help="Port to host web UI & API on"),
+    host: str = typer.Option("127.0.0.1", "--host", help="Host address to bind to"),
+    no_browser: bool = typer.Option(False, "--no-browser", help="Do not automatically open the default web browser")
 ):
-    """Launches the standalone dark-mode Web UI chat and opens it in your default browser."""
+    """Launches the standalone dark-mode Web UI chat and OpenAI-compatible API endpoint."""
+    console.print(BANNER)
     from bonsai.web_server import run_server
-    run_server()
+    try:
+        run_server(target=target, port=port, host=host, open_browser=not no_browser)
+    except Exception as e:
+        console.print(f"\n[bold red]❌ Bonsai UI Error:[/bold red] {e}\n")
+        raise typer.Exit(code=1)
 
 if __name__ == "__main__":
     app()
