@@ -10,11 +10,12 @@
 
 <p align="center">
   <a href="https://github.com/shenald-dev/bonsai/actions"><img src="https://img.shields.io/badge/CI-Passing-2ea44f.svg" alt="CI Status" /></a>
+  <a href="https://github.com/shenald-dev/bonsai/releases/tag/v0.1.0"><img src="https://img.shields.io/github/v/release/shenald-dev/bonsai?color=emerald" alt="Release" /></a>
+  <a href="https://github.com/shenald-dev/bonsai/stargazers"><img src="https://img.shields.io/github/stars/shenald-dev/bonsai?style=social" alt="GitHub Stars" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-0969da.svg" alt="License: MIT" /></a>
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.10%2B-blue.svg" alt="Python 3.10+" /></a>
   <a href="https://pytorch.org/"><img src="https://img.shields.io/badge/PyTorch-2.6%2B%20CUDA-ee4c2c.svg" alt="PyTorch CUDA" /></a>
   <a href="https://github.com/shenald-dev/bonsai"><img src="https://img.shields.io/badge/Zero--OOM-Guaranteed-brightgreen.svg" alt="Zero-OOM Protected" /></a>
-  <a href="https://github.com/shenald-dev/bonsai"><img src="https://img.shields.io/badge/Tests-28%2F28%20Passing-success.svg" alt="Tests 100% Passed" /></a>
 </p>
 
 ---
