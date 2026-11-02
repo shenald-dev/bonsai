@@ -2,47 +2,56 @@
 Tests for Bonsai CLI Commands & Argument Routing.
 """
 
+import re
 from unittest.mock import patch, MagicMock
 from typer.testing import CliRunner
 from bonsai.cli import app
 
 runner = CliRunner()
 
+def strip_ansi(text: str) -> str:
+    return re.sub(r'\x1b\[[0-9;]*[a-zA-Z]', '', text)
+
 def test_cli_help():
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
-    assert "Cultivate massive foundation models" in result.output
-    assert "probe" in result.output
-    assert "prune" in result.output
-    assert "exam" in result.output
-    assert "merge" in result.output
-    assert "serve" in result.output
-    assert "ui" in result.output
-    assert "version" in result.output
+    clean = strip_ansi(result.output)
+    assert "Cultivate massive foundation models" in clean
+    assert "probe" in clean
+    assert "prune" in clean
+    assert "exam" in clean
+    assert "merge" in clean
+    assert "serve" in clean
+    assert "ui" in clean
+    assert "version" in clean
 
 def test_cli_version():
     result = runner.invoke(app, ["version"])
     assert result.exit_code == 0
-    assert "Bonsai" in result.output
-    assert "version" in result.output
+    clean = strip_ansi(result.output)
+    assert "Bonsai" in clean
+    assert "version" in clean
 
 def test_cli_probe():
     result = runner.invoke(app, ["probe"])
     assert result.exit_code == 0
-    assert "Machine Telemetry & Auto-Downshift Profile" in result.output
-    assert "Learning Agility" in result.output
+    clean = strip_ansi(result.output)
+    assert "Machine Telemetry & Auto-Downshift Profile" in clean
+    assert "Learning Agility" in clean
 
 def test_cli_merge_help():
     result = runner.invoke(app, ["merge", "--help"])
     assert result.exit_code == 0
-    assert "Fuses LoRA synaptic adapter weights" in result.output
+    clean = strip_ansi(result.output)
+    assert "Fuses LoRA synaptic adapter weights" in clean
 
 def test_cli_ui_help():
     result = runner.invoke(app, ["ui", "--help"])
     assert result.exit_code == 0
-    assert "--port" in result.output
-    assert "--host" in result.output
-    assert "--no-browser" in result.output
+    clean = strip_ansi(result.output)
+    assert "--port" in clean
+    assert "--host" in clean
+    assert "--no-browser" in clean
 
 @patch("bonsai.trainers.trainer.BonsaiTrainer.train")
 @patch("bonsai.evaluators.exam.BonsaiExam.run_exam")
