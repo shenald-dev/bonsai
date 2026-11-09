@@ -9,6 +9,7 @@
 </p>
 
 <p align="center">
+  <a href="https://pypi.org/project/bonsai-slm/"><img src="https://img.shields.io/pypi/v/bonsai-slm.svg?color=emerald" alt="PyPI version" /></a>
   <a href="https://github.com/shenald-dev/bonsai/actions"><img src="https://img.shields.io/badge/CI-Passing-2ea44f.svg" alt="CI Status" /></a>
   <a href="https://github.com/shenald-dev/bonsai/releases/tag/v0.1.0"><img src="https://img.shields.io/github/v/release/shenald-dev/bonsai?color=emerald" alt="Release" /></a>
   <a href="https://github.com/shenald-dev/bonsai/stargazers"><img src="https://img.shields.io/github/stars/shenald-dev/bonsai?style=social" alt="GitHub Stars" /></a>
@@ -23,7 +24,10 @@
 ## ⚡ The 10-Second Quickstart
 
 ```bash
-uvx bonsai prune ./my_raw_data
+pip install bonsai-slm
+
+# Or run instantly without installation:
+uvx bonsai-slm prune ./my_raw_data
 ```
 
 No JSONL formatting. No CUDA out-of-memory crashes. No hyperparameter tuning. Drop raw logs, CSVs, code files, or a plain-English task goal—Bonsai takes care of the rest.
